@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🐔 PIXEL INVADERS · Galaga + Chicken</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0a0f1e;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', 'Press Start 2P', monospace;
+    }
+    .game-wrapper {
+      background: #1a1f2e;
+      padding: 20px 20px 25px;
+      border-radius: 30px;
+      box-shadow: 0 20px 30px rgba(0,0,0,0.7), inset 0 0 15px #3a4a6a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      border: 6px solid #4a3f2c;
+      border-radius: 20px;
+      image-rendering: crisp-edges;
+      image-rendering: pixelated;
+      background: #010314;
+      box-shadow: 0 0 25px #ffb34780;
+      width: 100%;
+      height: auto;
+      max-width: 700px;
+    }
+    .info-panel {
+      width: 100%;
+      margin-top: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #f7e358;
+      font-size: 1rem;
+      font-weight: bold;
+      text-shadow: 2px 2px 0 #3a2c0f;
+      background: #221c0f;
+      padding: 10px 18px;
+      border-radius: 40px;
+      border: 2px solid #e4b434;
+      letter-spacing: 1px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .player-tag {
+      background: #000;
+      padding: 5px 15px;
+      border-radius: 20px;
+      color: #ffd966;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .boss-life {
+      background: #3a0a0a;
+      padding: 5px 12px;
+      border-radius: 20px;
+      color: #ff6b6b;
+      font-size: 0.85rem;
+      display: none;
+      border: 2px solid #cc3333;
+    }
+    .boss-life.active {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    button {
+      background: #f3b33d;
+      border: none;
+      color: #231f10;
+      font-weight: bold;
+      font-size: 1rem;
+      font-family: inherit;
+      padding: 10px 18px;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #8b691b, 0 6px 10px black;
+      transition: 0.1s linear;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    button:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #8b691b, 0 5px 8px black;
+      background: #e09e2d;
+    }
+    .modal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(6px);
+      z-index: 100;
+    }
+    .modal-box {
+      background: #1e2233;
+      border: 4px solid #fcb42e;
+      border-radius: 35px;
+      padding: 25px 30px;
+      text-align: center;
+      color: #fadf8a;
+      box-shadow: 0 0 30px #f90;
+      max-width: 380px;
+    }
+    .modal-box input {
+      font-family: inherit;
+      font-size: 1.2rem;
+      padding: 12px;
+      border-radius: 20px;
+      border: 2px solid #c9a12e;
+      background: #030514;
+      color: #fae467;
+      text-align: center;
+      margin: 20px 0;
+      width: 80%;
+      outline: none;
+    }
+    .answers {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .answer-btn {
+      background: #2f3142;
+      color: #f0e17b;
+      border: 2px solid #bb932b;
+      padding: 12px;
+      border-radius: 30px;
+      font-size: 1rem;
+      transition: 0.1s;
+    }
+    .answer-btn:hover {
+      background: #4a4e6b;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="game-wrapper">
+  <canvas id="gameCanvas" width="650" height="500"></canvas>
+  <div class="info-panel">
+    <div class="player-tag">🚀 <span id="playerNameDisplay">PILOTO</span></div>
+    <div>💥 <span id="scoreDisplay">0</span></div>
+    <div>🌊 Nivel <span id="waveDisplay">1</span></div>
+    <div>❤️ <span id="livesDisplay">3</span></div>
+    <div class="boss-life" id="bossLifeBar">👾 JEFE ❤️<span id="bossHpDisplay">10</span></div>
+  </div>
+</div>
+
+<!-- Modal inicio -->
+<div id="startModal" class="modal">
+  <div class="modal-box">
+    <h2>🐔 PIXEL INVADERS</h2>
+    <p>¡Piloto, identifícate!</p>
+    <input type="text" id="nameInput" placeholder="NOMBRE" maxlength="12" autofocus>
+    <button id="startGameBtn">▶ INICIAR</button>
+  </div>
+</div>
+
+<!-- Modal pregunta -->
+<div id="questionModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="questionText">¿Pregunta?</h3>
+    <div class="answers" id="answersContainer"></div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    // UI
+    const playerNameSpan = document.getElementById('playerNameDisplay');
+    const scoreSpan = document.getElementById('scoreDisplay');
+    const livesSpan = document.getElementById('livesDisplay');
+    const waveDisplay = document.getElementById('waveDisplay');
+    const bossLifeDiv = document.getElementById('bossLifeBar');
+    const bossHpSpan = document.getElementById('bossHpDisplay');
+    const startModal = document.getElementById('startModal');
+    const questionModal = document.getElementById('questionModal');
+    const nameInput = document.getElementById('nameInput');
+    const startBtn = document.getElementById('startGameBtn');
+    const questionText = document.getElementById('questionText');
+    const answersContainer = document.getElementById('answersContainer');
+
+    // Estado
+    let playerName = "PILOTO";
+    let score = 0;
+    let lives = 3;
+    let gameActive = false;
+    let gameLoopId = null;
+    let wave = 1;
+
+    // Nave
+    let ship = { x: 325, y: 430, width: 28, height: 24 };
+    const shipSpeed = 5.5;
+
+    // Balas jugador
+    let bullets = [];
+    const bulletSpeed = -7;
+    const bulletCooldown = 12;
+    let bulletTimer = 0;
+
+    // Enemigos
+    let enemies = [];
+    let enemyBullets = [];
+    let enemySpeed = 1.2;
+    let enemyDirection = 1;
+    const enemyStepDown = 14;
+
+    // Jefe
+    let boss = null;
+    let bossBullets = [];
+    let bossActive = false;
+
+    // Láser (nuevo)
+    let activeLaser = null; // { x, y, width, targetY, active }
+
+    // Paletas de colores
+    const colorPalettes = [
+      { body: "#f0b028", head: "#f7d44a", eye: "#e03a3a", detail: "#b5651d", accent: "#e63900" },
+      { body: "#6ab04c", head: "#a8e06e", eye: "#e84118", detail: "#3a6b1e", accent: "#f6e58d" },
+      { body: "#686de0", head: "#a29bfe", eye: "#ff3838", detail: "#30336b", accent: "#ffdd59" },
+      { body: "#e056a0", head: "#fd79a8", eye: "#2d3436", detail: "#6c1d45", accent: "#ffeaa7" },
+      { body: "#f0932b", head: "#ffbe76", eye: "#c0392b", detail: "#d35400", accent: "#f9ca24" },
+    ];
+
+    function getPalette() {
+      return colorPalettes[Math.floor((wave - 1) / 3) % colorPalettes.length];
+    }
+
+    function getMovementPattern() {
+      return Math.floor((wave - 1) / 3) % 3;
+    }
+
+    const keys = {
+      ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false, Space: false
+    };
+
+    const questionPool = [
+      { question: "¿Qué es una CARPETA en la compu?", answers: ["Un lugar para guardar archivos", "Un tipo de virus", "Una pantalla"], correct: 0 },
+      { question: "El HARDWARE es...", answers: ["Lo que puedo tocar (teclado, pantalla)", "Un programa", "Un dibujo"], correct: 0 },
+      { question: "Windows es un ejemplo de:", answers: ["Sistema operativo", "Navegador", "Juego"], correct: 0 },
+      { question: "Un archivo .docx normalmente es:", answers: ["Un documento de texto", "Una canción", "Un video"], correct: 0 },
+      { question: "El SOFTWARE es:", answers: ["Programas y aplicaciones", "El mouse", "La impresora"], correct: 0 },
+      { question: "¿Para qué sirve el sistema operativo?", answers: ["Para que funcione la computadora", "Para pintar", "Solo para internet"], correct: 0 },
+      { question: "¿Qué es un archivo PDF?", answers: ["Un documento portable", "Una imagen 3D", "Un virus"], correct: 0 },
+      { question: "El teclado es parte del:", answers: ["Hardware", "Software", "Internet"], correct: 0 },
+    ];
+
+    // ========== DIBUJO ==========
+    function drawPixelShip(x, y) {
+      ctx.fillStyle = "#4ce6a0";
+      ctx.fillRect(x+10, y, 8, 6);
+      ctx.fillStyle = "#3a9c70";
+      ctx.fillRect(x+6, y+6, 16, 8);
+      ctx.fillStyle = "#f5e56c";
+      ctx.fillRect(x+8, y+8, 12, 4);
+      ctx.fillStyle = "#d94f4f";
+      ctx.fillRect(x+2, y+14, 6, 6);
+      ctx.fillRect(x+20, y+14, 6, 6);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x+12, y+2, 4, 4);
+      ctx.font = "bold 9px 'Courier New'";
+      ctx.fillStyle = "#ffdd88";
+      ctx.fillText(playerName, x-8, y-8);
+    }
+
+    function drawPixelEnemy(x, y, palette) {
+      ctx.fillStyle = palette.head;
+      ctx.fillRect(x+6, y, 14, 8);
+      ctx.fillStyle = palette.eye;
+      ctx.fillRect(x+8, y+3, 4, 4);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x+10, y+4, 2, 2);
+      ctx.fillStyle = palette.body;
+      ctx.fillRect(x+6, y+8, 16, 8);
+      ctx.fillStyle = palette.detail;
+      ctx.fillRect(x+4, y+14, 6, 6);
+      ctx.fillRect(x+18, y+14, 6, 6);
+      ctx.fillStyle = palette.accent;
+      ctx.fillRect(x+10, y+18, 6, 4);
+    }
+
+    function drawBoss(x, y, hp, maxHp) {
+      ctx.fillStyle = "#8b0000";
+      ctx.fillRect(x+4, y+10, 50, 32);
+      ctx.fillStyle = "#cc2222";
+      ctx.fillRect(x+2, y+4, 54, 38);
+      ctx.fillStyle = "#ffff00";
+      ctx.fillRect(x+10, y+12, 10, 10);
+      ctx.fillRect(x+36, y+12, 10, 10);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(x+14, y+16, 4, 4);
+      ctx.fillRect(x+40, y+16, 4, 4);
+      ctx.fillStyle = "#444";
+      ctx.fillRect(x+6, y-4, 8, 10);
+      ctx.fillRect(x+42, y-4, 8, 10);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(x+16, y+30, 8, 6);
+      ctx.fillRect(x+32, y+30, 8, 6);
+      // barra de vida
+      const bw = 56, bh = 6, bx = x+1, by = y-12;
+      ctx.fillStyle = "#333";
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = hp/maxHp > 0.4 ? "#0f0" : "#f00";
+      ctx.fillRect(bx, by, bw * (hp/maxHp), bh);
+    }
+
+    function drawBullet(x, y) {
+      ctx.fillStyle = "#ffee55";
+      ctx.fillRect(x, y, 4, 8);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x+1, y, 2, 4);
+    }
+
+    function drawEnemyBullet(x, y) {
+      ctx.fillStyle = "#ff5e4d";
+      ctx.fillRect(x, y, 4, 7);
+      ctx.fillStyle = "#ffb03a";
+      ctx.fillRect(x+1, y+1, 2, 3);
+    }
+
+    function drawBossBullet(x, y) {
+      ctx.fillStyle = "#ff4444";
+      ctx.fillRect(x-2, y-2, 6, 6);
+      ctx.fillStyle = "#ffaa00";
+      ctx.fillRect(x, y, 4, 4);
+    }
+
+    function drawLaser(x, y, w, h) {
+      // Láser rojo brillante
+      const gradient = ctx.createLinearGradient(x, y, x, y+h);
+      gradient.addColorStop(0, "#ff0000");
+      gradient.addColorStop(0.5, "#ff6666");
+      gradient.addColorStop(1, "#ff0000");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x+1, y, w-2, 4);
+      // chispas laterales
+      ctx.fillStyle = "#ffff00";
+      for (let i=0; i<3; i++) {
+        ctx.fillRect(x-3, y+10+i*12, 5, 3);
+        ctx.fillRect(x+w-2, y+10+i*12, 5, 3);
+      }
+    }
+
+    // ========== GENERACIÓN ==========
+    function spawnEnemies() {
+      enemies = [];
+      enemyBullets = [];
+      boss = null;
+      bossBullets = [];
+      bossActive = false;
+      activeLaser = null;
+      bossLifeDiv.classList.remove('active');
+
+      const rowsCount = Math.min(2 + Math.floor(wave / 2), 6);
+      const colsCount = Math.min(6 + Math.floor(wave / 1.5), 11);
+      enemySpeed = 1.0 + wave * 0.22;
+
+      const startX = 60, spacingX = 44, startY = 40, spacingY = 34;
+      for (let r = 0; r < rowsCount; r++) {
+        let cols = colsCount;
+        if (wave % 3 === 0 && r === 0) cols = Math.max(3, colsCount - 2);
+        for (let c = 0; c < cols; c++) {
+          let x = startX + c * spacingX + (r % 2) * 16;
+          let y = startY + r * spacingY;
+          enemies.push({ x, y, width: 26, height: 22, active: true });
+        }
+      }
+      enemyDirection = 1;
+      if (wave % 10 === 0 && wave > 0) spawnBoss();
+    }
+
+    function spawnBoss() {
+      boss = {
+        x: canvas.width/2 - 30, y: 20,
+        width: 60, height: 50,
+        hp: 12 + wave, maxHp: 12 + wave,
+        moveDir: 1,
+        shootTimer: 0, shootCooldown: 40
+      };
+      bossBullets = [];
+      bossActive = true;
+      bossLifeDiv.classList.add('active');
+      bossHpSpan.textContent = boss.hp;
+    }
+
+    function resetGame() {
+      score = 0; lives = 3; wave = 1;
+      bullets = []; enemyBullets = []; boss = null; bossBullets = [];
+      bossActive = false; activeLaser = null;
+      bossLifeDiv.classList.remove('active');
+      ship.x = 325; ship.y = 430;
+      spawnEnemies();
+      updateUI();
+    }
+
+    function fullRestart() {
+      gameActive = false;
+      if (gameLoopId) cancelAnimationFrame(gameLoopId);
+      gameLoopId = null;
+      resetGame();
+      startModal.classList.remove('hidden');
+      questionModal.classList.add('hidden');
+    }
+
+    function updateUI() {
+      scoreSpan.textContent = score;
+      livesSpan.textContent = lives;
+      waveDisplay.textContent = wave;
+      playerNameSpan.textContent = playerName;
+      if (boss && bossActive) bossHpSpan.textContent = boss.hp;
+    }
+
+    // ========== PREGUNTAS ==========
+    function askQuestion() {
+      if (!gameActive) return;
+      gameActive = false;
+      const q = questionPool[Math.floor(Math.random() * questionPool.length)];
+      questionText.textContent = q.question;
+      answersContainer.innerHTML = "";
+      q.answers.forEach((ans, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'answer-btn';
+        btn.textContent = ans;
+        btn.addEventListener('click', () => handleAnswer(idx, q.correct));
+        answersContainer.appendChild(btn);
+      });
+      questionModal.classList.remove('hidden');
+    }
+
+    function handleAnswer(selected, correctIdx) {
+      questionModal.classList.add('hidden');
+      if (selected === correctIdx) {
+        lives = Math.min(lives + 1, 5);
+        updateUI();
+        gameActive = true;
+      } else {
+        alert("❌ Respuesta incorrecta... GAME OVER");
+        fullRestart();
+      }
+    }
+
+    function playerDied() {
+      lives--;
+      updateUI();
+      if (lives <= 0) {
+        gameActive = false;
+        alert("💔 Sin vidas... GAME OVER");
+        fullRestart();
+        return;
+      }
+      askQuestion();
+    }
+
+    // ========== ACTUALIZACIÓN ==========
+    function update() {
+      if (!gameActive) return;
+
+      // Movimiento nave
+      if (keys.ArrowLeft && ship.x > 10) ship.x -= shipSpeed;
+      if (keys.ArrowRight && ship.x < canvas.width - ship.width - 10) ship.x += shipSpeed;
+      if (keys.ArrowUp && ship.y > 300) ship.y -= 3.5;
+      if (keys.ArrowDown && ship.y < canvas.height - ship.height - 10) ship.y += 3.5;
+
+      // Disparo jugador
+      if (keys.Space && bulletTimer <= 0) {
+        bullets.push({ x: ship.x + ship.width/2 - 2, y: ship.y - 4, w: 4, h: 8 });
+        bulletTimer = bulletCooldown;
+      }
+      if (bulletTimer > 0) bulletTimer--;
+
+      // Mover balas jugador
+      for (let i = bullets.length-1; i >= 0; i--) {
+        bullets[i].y += bulletSpeed;
+        if (bullets[i].y + bullets[i].h < 0) bullets.splice(i,1);
+      }
+
+      // Movimiento enemigos
+      const pattern = getMovementPattern();
+      let moveDown = false, edgeReached = false;
+      for (let e of enemies) {
+        if (!e.active) continue;
+        e.x += enemySpeed * enemyDirection;
+        if (pattern === 1) e.y += Math.sin(Date.now() * 0.01 + e.x) * 0.4;
+        else if (pattern === 2) e.y += 0.15;
+        if (e.x <= 8 || e.x + e.width >= canvas.width - 8) edgeReached = true;
+      }
+      if (edgeReached) {
+        enemyDirection *= -1;
+        if (pattern !== 2) moveDown = true;
+      }
+      if (moveDown) {
+        for (let e of enemies) if (e.active) e.y += enemyStepDown;
+      }
+
+      // Disparo enemigo
+      for (let e of enemies) {
+        if (!e.active) continue;
+        if (Math.random() < 0.006 + wave * 0.0004) {
+          enemyBullets.push({
+            x: e.x + e.width/2 - 2, y: e.y + e.height,
+            w: 4, h: 7, speed: 1.5 + wave * 0.08
+          });
+        }
+      }
+
+      // Láser: si algún enemigo está demasiado cerca (y < 350) y no hay láser activo
+      if (!activeLaser && enemies.some(e => e.active && e.y > 280 && e.y < 400)) {
+        // Crear láser centrado en la nave
+        activeLaser = {
+          x: ship.x + ship.width/2 - 8,
+          y: 0,
+          width: 16,
+          height: 0,
+          targetY: ship.y + ship.height,
+          speed: 6
+        };
+      }
+
+      // Actualizar láser
+      if (activeLaser) {
+        activeLaser.height += activeLaser.speed;
+        if (activeLaser.height >= activeLaser.targetY) {
+          // Impacto: muerte definitiva (pierde todas las vidas)
+          activeLaser = null;
+          gameActive = false;
+          alert("⚡ ¡LÁSER MORTAL! Has sido eliminado definitivamente... GAME OVER");
+          fullRestart();
+          return;
+        }
+        // Colisión láser con balas jugador (puede destruir balas)
+        for (let i = bullets.length-1; i >= 0; i--) {
+          let b = bullets[i];
+          if (b.x < activeLaser.x + activeLaser.width && b.x + b.w > activeLaser.x &&
+              b.y < activeLaser.y + activeLaser.height && b.y + b.h > activeLaser.y) {
+            bullets.splice(i,1);
+          }
+        }
+      }
+
+      // Jefe
+      if (boss && bossActive) {
+        boss.x += 1.8 * boss.moveDir;
+        if (boss.x <= 5 || boss.x + boss.width >= canvas.width - 5) boss.moveDir *= -1;
+        boss.shootTimer--;
+        if (boss.shootTimer <= 0) {
+          boss.shootTimer = boss.shootCooldown;
+          for (let ang of [Math.PI/2, Math.PI/2-0.5, Math.PI/2+0.5]) {
+            bossBullets.push({
+              x: boss.x + boss.width/2, y: boss.y + boss.height,
+              vx: Math.cos(ang)*2.5, vy: Math.sin(ang)*2.5, w:6, h:6
+            });
+          }
+        }
+        for (let i=bossBullets.length-1; i>=0; i--) {
+          let bb = bossBullets[i];
+          bb.x += bb.vx; bb.y += bb.vy;
+          if (bb.y > canvas.height || bb.x < 0 || bb.x > canvas.width) { bossBullets.splice(i,1); continue; }
+          if (bb.x < ship.x+ship.width && bb.x+bb.w > ship.x && bb.y < ship.y+ship.height && bb.y+bb.h > ship.y) {
+            bossBullets.splice(i,1);
+            playerDied();
+            if (!gameActive) return;
+          }
+        }
+        for (let i=bullets.length-1; i>=0; i--) {
+          let b = bullets[i];
+          if (b.x < boss.x+boss.width && b.x+b.w > boss.x && b.y < boss.y+boss.height && b.y+b.h > boss.y) {
+            bullets.splice(i,1);
+            boss.hp--;
+            bossHpSpan.textContent = boss.hp;
+            score += 20;
+            if (boss.hp <= 0) {
+              score += 200;
+              bossActive = false; boss = null; bossBullets = [];
+              bossLifeDiv.classList.remove('active');
+              wave++; spawnEnemies(); updateUI();
+              return;
+            }
+          }
+        }
+      }
+
+      // Mover balas enemigas
+      for (let i=enemyBullets.length-1; i>=0; i--) {
+        let eb = enemyBullets[i];
+        eb.y += eb.speed;
+        if (eb.y > canvas.height) { enemyBullets.splice(i,1); continue; }
+        if (eb.x < ship.x+ship.width && eb.x+eb.w > ship.x && eb.y < ship.y+ship.height && eb.y+eb.h > ship.y) {
+          enemyBullets.splice(i,1);
+          playerDied();
+          if (!gameActive) return;
+        }
+      }
+
+      // Colisión bala -> enemigos
+      for (let i=bullets.length-1; i>=0; i--) {
+        let b = bullets[i];
+        let hit = false;
+        for (let e of enemies) {
+          if (!e.active) continue;
+          if (b.x < e.x+e.width && b.x+b.w > e.x && b.y < e.y+e.height && b.y+b.h > e.y) {
+            e.active = false;
+            hit = true;
+            score += 10;
+            updateUI();
+            break;
+          }
+        }
+        if (hit) bullets.splice(i,1);
+      }
+
+      // COLISIÓN NAVE - ENEMIGO (nuevo)
+      for (let e of enemies) {
+        if (!e.active) continue;
+        if (e.x < ship.x+ship.width && e.x+e.width > ship.x &&
+            e.y < ship.y+ship.height && e.y+e.height > ship.y) {
+          // El enemigo explota y desaparece
+          e.active = false;
+          score += 5;
+          // El jugador muere (pierde vida y pregunta)
+          playerDied();
+          if (!gameActive) return;
+          break;
+        }
+        if (e.y + e.height >= canvas.height - 15) {
+          playerDied();
+          if (!gameActive) return;
+          break;
+        }
+      }
+
+      enemies = enemies.filter(e => e.active);
+
+      if (enemies.length === 0 && !bossActive && gameActive) {
+        wave++;
+        spawnEnemies();
+        score += 30;
+        updateUI();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Estrellas
+      ctx.fillStyle = "#fff";
+      for (let i=0; i<45; i++) {
+        ctx.fillRect((i*23+11)%canvas.width, (i*17+wave*3)%canvas.height, 2, 2);
+      }
+      const palette = getPalette();
+      for (let e of enemies) drawPixelEnemy(e.x, e.y, palette);
+      if (boss && bossActive) drawBoss(boss.x, boss.y, boss.hp, boss.maxHp);
+      for (let b of bullets) drawBullet(b.x, b.y);
+      for (let eb of enemyBullets) drawEnemyBullet(eb.x, eb.y);
+      for (let bb of bossBullets) drawBossBullet(bb.x, bb.y);
+      // Dibujar láser
+      if (activeLaser) {
+        drawLaser(activeLaser.x, activeLaser.y, activeLaser.width, activeLaser.height);
+      }
+      drawPixelShip(ship.x, ship.y);
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      gameLoopId = requestAnimationFrame(gameLoop);
+    }
+
+    // Eventos
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+        e.preventDefault(); keys[e.key] = true;
+      }
+      if (e.key === ' ') { e.preventDefault(); keys.Space = true; }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+        e.preventDefault(); keys[e.key] = false;
+      }
+      if (e.key === ' ') { e.preventDefault(); keys.Space = false; }
+    });
+
+    startBtn.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      if (!name) { alert("¡Ingresa un nombre, piloto!"); return; }
+      playerName = name.toUpperCase();
+      playerNameSpan.textContent = playerName;
+      startModal.classList.add('hidden');
+      resetGame();
+      gameActive = true;
+      if (gameLoopId) cancelAnimationFrame(gameLoopId);
+      gameLoop();
+    });
+    nameInput.addEventListener('keypress', (e) => { if (e.key==='Enter') startBtn.click(); });
+
+    updateUI();
+    startModal.classList.remove('hidden');
+    questionModal.classList.add('hidden');
+    draw();
+  })();
+</script>
+</body>
+</html>
